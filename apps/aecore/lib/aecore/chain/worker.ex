@@ -126,7 +126,7 @@ defmodule Aecore.Chain.Worker do
         %MarketMatchTx{} ->
           true
         %TravelMarketTx{} ->
-          tx.data.ttl >= current_height
+          true
         _ ->
           false
       end
