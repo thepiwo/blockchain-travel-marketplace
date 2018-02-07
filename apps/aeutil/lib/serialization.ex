@@ -38,7 +38,9 @@ defmodule Aeutil.Serialization do
       %MarketMatchTx{} ->
         new_data = %{tx.data |
           from_acc: hex_binary(tx.data.from_acc, direction),
-          to_acc: hex_binary(tx.data.to_acc, direction)}
+          to_acc: hex_binary(tx.data.to_acc, direction),
+          offer_hash: hex_binary(tx.data.offer_hash, direction),
+          demand_hash: hex_binary(tx.data.demand_hash, direction)}
         MarketMatchTx.new(new_data)
       %TravelMarketTx{} ->
         new_data = %{tx.data |
