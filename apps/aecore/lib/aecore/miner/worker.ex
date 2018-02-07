@@ -333,14 +333,19 @@ defmodule Aecore.Miner.Worker do
         && demand.data.to == offer.data.to
         && demand.data.date == offer.data.date
         && demand.data.price >= offer.data.price
-        && !Enum.member?(satisfied_demands, TravelMarketTx.hash_tx(demand))
+        && !Enum.member?(satisfied_demands, TravelMarketTx.hash_tx(demand.data))
       end)
 
       IO.puts("possible_demands: #{inspect(possible_demands)}")
 
-      #TODO: check remaining demand
+      offer_previous_matches_demand_hashes = matches |> Enum.filter(fn match -> match.data.offer_hash == TravelMarketTx.hash_tx(offer.data) end) |> Enum.map(fn match -> match.data.demand_hash end)
+      offer_previous_matches_demands_capacity = demands |> Enum.filter(fn demand -> Enum.member?(offer_previous_matches_demand_hashes, TravelMarketTx.hash_tx(demand.data)) end) |> Enum.map(fn demand -> demand.data.capacity end)
+      offer_remaining_capacity = offer.data.capacity - (offer_previous_matches_demands_capacity |> Enum.sum())
 
-      demand_matches_capacity = possible_demands |> List.foldl({[], offer.data.capacity}, fn demand, {demand_matches, capacity_left} ->
+     IO.puts("offer_remaining_capacity: #{inspect(offer_remaining_capacity)}")
+
+
+     demand_matches_capacity = possible_demands |> List.foldl({[], offer_remaining_capacity}, fn demand, {demand_matches, capacity_left} ->
         if capacity_left >= demand.data.capacity do
           {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer.data), TravelMarketTx.hash_tx(demand.data))
           market_match_tx = %SignedTx{data: market_match_tx, signature: nil}
