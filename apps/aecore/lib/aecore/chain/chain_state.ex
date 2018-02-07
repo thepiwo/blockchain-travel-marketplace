@@ -39,6 +39,8 @@ defmodule Aecore.Chain.ChainState do
                         transaction.data.to_acc,
                         transaction.data.value,
                         transaction.data.lock_time_block)
+      SignedTx.is_market_match?(transaction) ->
+        chain_state
       transaction.data.from_acc != nil ->
         if !SignedTx.is_valid?(transaction) do
           throw {:error, "Invalid transaction"}

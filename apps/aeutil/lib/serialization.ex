@@ -8,6 +8,7 @@ defmodule Aeutil.Serialization do
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.SignedTx
   alias Aecore.Structures.TravelMarketTx
+  alias Aecore.Structures.MarketMatchTx
 
 
   def chain_state(chain_state, direction) do
@@ -34,6 +35,11 @@ defmodule Aeutil.Serialization do
           from_acc: hex_binary(tx.data.from_acc, direction),
           to_acc: hex_binary(tx.data.to_acc, direction)}
         SpendTx.new(new_data)
+      %MarketMatchTx{} ->
+        new_data = %{tx.data |
+          from_acc: hex_binary(tx.data.from_acc, direction),
+          to_acc: hex_binary(tx.data.to_acc, direction)}
+        MarketMatchTx.new(new_data)
       %TravelMarketTx{} ->
         new_data = %{tx.data |
           from_acc: hex_binary(tx.data.from_acc, direction)

@@ -8,6 +8,7 @@ defmodule Aecore.Chain.Worker do
   alias Aecore.Structures.Block
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.TravelMarketTx
+  alias Aecore.Structures.MarketMatchTx
   alias Aecore.Structures.Block
   alias Aecore.Chain.ChainState
   alias Aecore.Txs.Pool.Worker, as: Pool
@@ -122,6 +123,8 @@ defmodule Aecore.Chain.Worker do
     chain_txs = chain |> Enum.flat_map(fn block -> block.txs end)
     chain_txs |> Enum.filter(fn tx ->
       case tx.data do
+        %MarketMatchTx{} ->
+          true
         %TravelMarketTx{} ->
           tx.data.ttl >= current_height
         _ ->
@@ -254,6 +257,8 @@ defmodule Aecore.Chain.Worker do
           [tx.data.from_acc, tx.data.to_acc]
         %TravelMarketTx{} ->
           [tx.data.from_acc]
+        %MarketMatchTx{} ->
+          [tx.data.from_acc, tx.data.to_acc]
       end
     end
     accounts_unique = accounts |> List.flatten() |> Enum.uniq() |> List.delete(nil)

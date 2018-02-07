@@ -16,6 +16,7 @@ defmodule Aecore.Miner.Worker do
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.SignedTx
   alias Aecore.Structures.TravelMarketTx
+  alias Aecore.Structures.MarketMatchTx
   alias Aecore.Chain.ChainState
   alias Aecore.Txs.Pool.Worker, as: Pool
   alias Aeutil.Bits
@@ -240,7 +241,7 @@ defmodule Aecore.Miner.Worker do
 
       total_fees = calculate_total_fees(valid_txs_by_fee)
       coinbase_tx = get_coinbase_transaction(pubkey, total_fees, top_block.header.height + 1 + Application.get_env(:aecore, :tx_data)[:lock_time_coinbase])
-      valid_txs = [coinbase_tx | valid_txs_by_fee ] #| market_match_txs]
+      valid_txs = [coinbase_tx | valid_txs_by_fee] ++ market_match_txs
 
       root_hash = BlockValidation.calculate_root_hash(valid_txs)
 
@@ -270,7 +271,9 @@ defmodule Aecore.Miner.Worker do
   end
 
   def calculate_total_fees(txs) do
-    List.foldl(txs, 0, fn (tx, acc) ->
+    txs
+      |> Enum.filter(fn tx -> !SignedTx.is_market_match?(tx) end)
+      |> List.foldl(0, fn (tx, acc) ->
         acc + tx.data.fee
     end)
   end
@@ -307,19 +310,24 @@ defmodule Aecore.Miner.Worker do
   def next_nonce(nonce), do:  nonce + 1
 
   def calculate_market_matches(txs) do
-    {demands, offers} = txs |> List.foldl({[], []} ,fn tx, {demand, offer} ->
-      case tx.data.type do
-        :demand ->
-          {demand ++ [tx], offer}
-        :offer ->
-          {demand, offer ++ [tx]}
+    {demands, offers, matches} = txs |> List.foldl({[], [], []} ,fn tx, {demand, offer, match} ->
+      if SignedTx.is_market_match?(tx) do
+        {demand, offer, [tx | match]}
+      else
+        case tx.data.type do
+          :demand ->
+            {[tx | demand], offer, match}
+          :offer ->
+            {demand, [tx | offer], match}
+        end
       end
     end)
 
     offers = offers |> Enum.sort(fn o1, o2 -> o1.data.price > o2.data.price end)
     demands = demands |> Enum.sort(fn d1, d2 -> d1.data.price > d2.data.price end)
 
-   satisfied_demands = offers |> List.foldl({[], []}, fn offer, {market_match_txs, satisfied_demands} ->
+    market_match_txs = offers |> List.foldl([], fn offer, market_match_txs ->
+     satisfied_demands = (market_match_txs |> Enum.map(fn tx -> tx.data.demand_hash end)) ++ (matches |> Enum.map(fn tx -> tx.data.demand_hash end))
       possible_demands = demands |> Enum.filter(fn demand ->
         demand.data.from == offer.data.from
         && demand.data.to == offer.data.to
@@ -330,10 +338,13 @@ defmodule Aecore.Miner.Worker do
 
       IO.puts("possible_demands: #{inspect(possible_demands)}")
 
+      #TODO: check remaining demand
 
       demand_matches_capacity = possible_demands |> List.foldl({[], offer.data.capacity}, fn demand, {demand_matches, capacity_left} ->
         if capacity_left >= demand.data.capacity do
-          {demand_matches ++ [TravelMarketTx.hash_tx(demand)], capacity_left - demand.data.capacity}
+          {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer), TravelMarketTx.hash_tx(demand))
+          market_match_tx = %SignedTx{data: market_match_tx, signature: nil}
+          {[market_match_tx | demand_matches], capacity_left - demand.data.capacity}
         else
           {demand_matches, capacity_left}
         end
@@ -341,12 +352,11 @@ defmodule Aecore.Miner.Worker do
 
       IO.puts("demand_matches_capacity: #{inspect(demand_matches_capacity)}")
 
-      {demand_matches_capacity |> elem(0), demand_matches_capacity |> elem(0)}
-
+     (demand_matches_capacity |> elem(0)) ++ market_match_txs
     end)
 
-    IO.puts("satisfied_demands: #{inspect(satisfied_demands |> elem(0))}")
-
+    IO.puts("market_match_txs: #{inspect(market_match_txs)}")
+    market_match_txs
   end
 
 end
