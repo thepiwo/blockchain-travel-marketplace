@@ -116,6 +116,20 @@ defmodule Aecore.Chain.Worker do
     top_block_chain_state()
   end
 
+  def market_txs() do
+    current_height = top_height()
+    chain = longest_blocks_chain()
+    chain_txs = chain |> Enum.flat_map(fn block -> block.txs end)
+    chain_txs |> Enum.filter(fn tx ->
+      case tx.data do
+        %TravelMarketTx{} ->
+          tx.data.ttl >= current_height
+        _ ->
+          false
+      end
+    end)
+  end
+
   @spec longest_blocks_chain() :: list(Block.t())
   def longest_blocks_chain() do
     get_blocks(top_block_hash(), top_height() + 1)
