@@ -237,7 +237,10 @@ defmodule Aecore.Miner.Worker do
       valid_txs_by_fee = filter_transactions_by_fee(valid_txs_by_chainstate)
 
       {_, pubkey} = Keys.pubkey()
-      market_match_txs = calculate_market_matches(Chain.market_txs())
+      {market_match_txs, satisfied_demands_txs} = calculate_market_matches(Chain.market_txs())
+
+      #TODO: lock demand price * capacity
+      #TODO: transfer price * capacity for satisfied demands to offering account
 
       total_fees = calculate_total_fees(valid_txs_by_fee)
       coinbase_tx = get_coinbase_transaction(pubkey, total_fees, top_block.header.height + 1 + Application.get_env(:aecore, :tx_data)[:lock_time_coinbase])
@@ -326,14 +329,14 @@ defmodule Aecore.Miner.Worker do
     offers = offers |> Enum.sort(fn o1, o2 -> o1.data.price > o2.data.price end)
     demands = demands |> Enum.sort(fn d1, d2 -> d1.data.price > d2.data.price end)
 
-    market_match_txs = offers |> List.foldl([], fn offer, market_match_txs ->
-     satisfied_demands = (market_match_txs |> Enum.map(fn tx -> tx.data.demand_hash end)) ++ (matches |> Enum.map(fn tx -> tx.data.demand_hash end))
+    {market_match_txs, satisfied_demands_txs} = offers |> List.foldl({[], []}, fn offer, {market_match_txs, satisfied_demands_txs} ->
+     previous_satisfied_demands = (market_match_txs |> Enum.map(fn tx -> tx.data.demand_hash end)) ++ (matches |> Enum.map(fn tx -> tx.data.demand_hash end))
       possible_demands = demands |> Enum.filter(fn demand ->
         demand.data.from == offer.data.from
         && demand.data.to == offer.data.to
         && demand.data.date == offer.data.date
         && demand.data.price >= offer.data.price
-        && !Enum.member?(satisfied_demands, TravelMarketTx.hash_tx(demand.data))
+        && !Enum.member?(previous_satisfied_demands, TravelMarketTx.hash_tx(demand.data))
       end)
 
       IO.puts("possible_demands: #{inspect(possible_demands)}")
@@ -344,24 +347,24 @@ defmodule Aecore.Miner.Worker do
 
      IO.puts("offer_remaining_capacity: #{inspect(offer_remaining_capacity)}")
 
-
-     demand_matches_capacity = possible_demands |> List.foldl({[], offer_remaining_capacity}, fn demand, {demand_matches, capacity_left} ->
+     demand_matches_capacity = possible_demands |> List.foldl({[], [], offer_remaining_capacity}, fn demand, {demand_matches, satisfied_demands, capacity_left} ->
         if capacity_left >= demand.data.capacity do
           {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer.data), TravelMarketTx.hash_tx(demand.data))
           market_match_tx = %SignedTx{data: market_match_tx, signature: nil}
-          {[market_match_tx | demand_matches], capacity_left - demand.data.capacity}
+          {[market_match_tx | demand_matches], [demand | satisfied_demands], capacity_left - demand.data.capacity}
         else
-          {demand_matches, capacity_left}
+          {demand_matches, satisfied_demands, capacity_left}
         end
-      end)
+     end)
 
-      IO.puts("demand_matches_capacity: #{inspect(demand_matches_capacity)}")
+     IO.puts("demand_matches_capacity: #{inspect(demand_matches_capacity)}")
 
-     (demand_matches_capacity |> elem(0)) ++ market_match_txs
+     {(demand_matches_capacity |> elem(0)) ++ market_match_txs, (demand_matches_capacity |> elem(1)) ++ satisfied_demands_txs}
     end)
 
     IO.puts("market_match_txs: #{inspect(market_match_txs)}")
-    market_match_txs
+    IO.puts("satisfied_demands_txs: #{inspect(satisfied_demands_txs)}")
+    {market_match_txs, satisfied_demands_txs}
   end
 
 end
