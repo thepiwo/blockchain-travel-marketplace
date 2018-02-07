@@ -9,6 +9,13 @@ defmodule Aeutil.Serialization do
   alias Aecore.Structures.SignedTx
   alias Aecore.Structures.TravelMarketTx
 
+
+  def chain_state(chain_state, direction) do
+   for {acc, state} <- chain_state do
+    %{hex_binary(acc, direction) => state}
+   end
+  end
+
   @spec block(Block.t(), :serialize | :deserialize) :: Block.t()
   def block(block, direction) do
     new_header = %{block.header |

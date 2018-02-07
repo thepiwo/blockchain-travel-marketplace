@@ -1,5 +1,7 @@
 defmodule Aehttpserver.Web.TxController do
   use Aehttpserver.Web, :controller
+  alias Aecore.Structures.SpendTx
+  alias Aecore.Structures.TravelMarketTx
   alias Aecore.Txs.Pool.Worker, as: Pool
   alias Aeutil.Serialization, as: Serialization
 
@@ -26,13 +28,23 @@ defmodule Aehttpserver.Web.TxController do
 
           _ ->
             json(conn, Enum.map(user_txs, fn(tx) ->
+              if Map.has_key?(tx, :to_acc) do
                   %{tx |
                     from_acc: Serialization.hex_binary(tx.from_acc, :serialize),
                     to_acc: Serialization.hex_binary(tx.to_acc, :serialize),
                     txs_hash: Serialization.hex_binary(tx.txs_hash, :serialize),
                     block_hash: Serialization.hex_binary(tx.block_hash, :serialize),
                     signature: Serialization.hex_binary(tx.signature, :serialize)
-                   } end))
+                  }
+               else
+                  %{tx |
+                    from_acc: Serialization.hex_binary(tx.from_acc, :serialize),
+                    txs_hash: Serialization.hex_binary(tx.txs_hash, :serialize),
+                    block_hash: Serialization.hex_binary(tx.block_hash, :serialize),
+                    signature: Serialization.hex_binary(tx.signature, :serialize)
+                  }
+              end
+            end))
         end
     end
   end
