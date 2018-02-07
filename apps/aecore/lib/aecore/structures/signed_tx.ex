@@ -6,9 +6,12 @@ defmodule Aecore.Structures.SignedTx do
   alias Aecore.Keys.Worker, as: Keys
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.TravelMarketTx
+
+  @type data_types :: SpendTx.t() | TravelMarketTx.t()
 
   @type t :: %SignedTx{
-    data: SpendTx.t(),
+    data: data_types(),
     signature: binary()
   }
 
@@ -29,7 +32,16 @@ defmodule Aecore.Structures.SignedTx do
 
   @spec is_valid?(SignedTx.t()) :: boolean()
   def is_valid?(tx) do
-    tx.data.value >= 0 && tx.data.fee >= 0 && Keys.verify_tx(tx)
+    case tx.data do
+      %SpendTx{} ->
+        tx.data.fee >= 0
+        && Keys.verify_tx(tx)
+        && tx.data.value > 0
+      %TravelMarketTx{} ->
+        tx.data.fee >= 0
+        && Keys.verify_tx(tx)
+        && tx.data.capacity > 0
+    end
   end
 
 end

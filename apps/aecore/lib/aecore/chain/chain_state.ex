@@ -5,6 +5,8 @@ defmodule Aecore.Chain.ChainState do
   """
 
   alias Aecore.Structures.SignedTx
+  alias Aecore.Structures.SpendTx
+  alias Aecore.Structures.TravelMarketTx
 
   require Logger
 
@@ -41,26 +43,31 @@ defmodule Aecore.Chain.ChainState do
         if !SignedTx.is_valid?(transaction) do
           throw {:error, "Invalid transaction"}
         end
-        chain_state
+
+        value = case transaction.data do
+          %SpendTx{} ->
+            transaction.data.value + transaction.data.fee
+          %TravelMarketTx{} ->
+           transaction.data.fee
+         end
+
+        chain_state = chain_state
         |> transaction_out!(block_height,
                             transaction.data.from_acc,
-                            -(transaction.data.value + transaction.data.fee),
+                            -value,
                             transaction.data.nonce,
                             -1)
-        |> transaction_in!(block_height,
-                           transaction.data.to_acc,
-                           transaction.data.value,
-                           transaction.data.lock_time_block)
-        chain_state
-        |> transaction_out!(block_height,
-                            transaction.data.from_acc,
-                            -(transaction.data.value + transaction.data.fee),
-                            transaction.data.nonce,
-                            -1)
-        |> transaction_in!(block_height,
-                           transaction.data.to_acc,
-                           transaction.data.value,
-                           transaction.data.lock_time_block)
+
+        case transaction.data do
+          %SpendTx{} ->
+            chain_state
+            |> transaction_in!(block_height,
+                               transaction.data.to_acc,
+                               transaction.data.value,
+                               transaction.data.lock_time_block)
+          %TravelMarketTx{} ->
+            chain_state
+        end
       true ->
         throw {:error, "Noncoinbase transaction with from_acc=nil"}
     end

@@ -6,6 +6,9 @@ defmodule Aecore.Chain.Worker do
   use GenServer
 
   alias Aecore.Structures.Block
+  alias Aecore.Structures.SpendTx
+  alias Aecore.Structures.TravelMarketTx
+  alias Aecore.Structures.Block
   alias Aecore.Chain.ChainState
   alias Aecore.Txs.Pool.Worker, as: Pool
   alias Aecore.Chain.BlockValidation
@@ -232,7 +235,12 @@ defmodule Aecore.Chain.Worker do
   defp calculate_block_acc_txs_info(block) do
     block_hash = BlockValidation.block_header_hash(block.header)
     accounts = for tx <- block.txs do
-      [tx.data.from_acc, tx.data.to_acc]
+      case tx.data do
+        %SpendTx{} ->
+          [tx.data.from_acc, tx.data.to_acc]
+        %TravelMarketTx{} ->
+          [tx.data.from_acc]
+      end
     end
     accounts_unique = accounts |> List.flatten() |> Enum.uniq() |> List.delete(nil)
     for account <- accounts_unique, into: %{} do

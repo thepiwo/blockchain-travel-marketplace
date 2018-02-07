@@ -114,7 +114,9 @@ defmodule Aecore.Chain.BlockValidation do
     try do
       {true, ChainState.apply_transaction_on_state!(tx, chain_state, block_height)}
     catch
-      {:error, _} -> {false, chain_state}
+      {:error, error} ->
+        IO.puts("validate_transaction_chainstate error #{inspect(error)}")
+        {false, chain_state}
     end
   end
 

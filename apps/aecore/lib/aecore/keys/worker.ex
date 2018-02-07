@@ -39,10 +39,8 @@ defmodule Aecore.Keys.Worker do
      - value: The amount of a transaction
 
   """
-  @spec sign_tx(binary(), integer(), integer(), integer(), integer()) :: {:ok, SignedTx.t()}
-  def sign_tx(to_acc, value, nonce, fee, lock_time_block \\ 0) do
-    {:ok, from_acc} = pubkey()
-    {:ok, tx_data} = SpendTx.create(from_acc, to_acc, value, nonce, fee, lock_time_block)
+  @spec sign_tx(SignedTx.data_types()) :: {:ok, SignedTx.t()}
+  def sign_tx(tx_data) do
     {:ok, signature} = sign(tx_data)
     signed_tx = %SignedTx{data: tx_data, signature: signature}
     {:ok, signed_tx}
