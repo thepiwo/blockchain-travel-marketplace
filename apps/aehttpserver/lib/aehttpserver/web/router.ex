@@ -21,6 +21,7 @@ defmodule Aehttpserver.Web.Router do
     post "/new_block", BlockController, :new_block
     get "/blocks", BlockController, :get_blocks
     get "/chainstate", ChainStateController, :chainstate
+    get "/market", MarketController, :market
     get "/raw_blocks", BlockController, :get_raw_blocks
     get "/pool_txs", TxPoolController, :get_pool_txs
     resources "/block", BlockController, param: "hash", only: [:show]
