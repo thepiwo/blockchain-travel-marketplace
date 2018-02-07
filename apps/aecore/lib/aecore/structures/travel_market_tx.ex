@@ -16,17 +16,21 @@ defmodule Aecore.Structures.TravelMarketTx do
     type: market_type(),
     date: non_neg_integer(),
     capacity: non_neg_integer(),
-    travel_time: non_neg_integer()
+    travel_time: non_neg_integer(),
+    ttl: non_neg_integer(),
+
+    from: String.t(),
+    to: String.t()
   }
 
   @doc """
   Definition of Aecore TravelMarketTx structure
   """
-  defstruct [:from_acc, :nonce, :fee, :price, :type, :date, :capacity, :travel_time]
+  defstruct [:from_acc, :nonce, :fee, :price, :type, :date, :capacity, :travel_time, :ttl, :from, :to]
   use ExConstructor
 
-  @spec create(binary(), non_neg_integer(), non_neg_integer(), non_neg_integer(), market_type(), non_neg_integer(), non_neg_integer(), non_neg_integer()) :: {:ok, TravelMarketTx.t()}
-  def create(from_acc, nonce, fee, price, type, date, capacity, travel_time) do
+  @spec create(binary(), non_neg_integer(), non_neg_integer(), non_neg_integer(), market_type(), non_neg_integer(), non_neg_integer(), non_neg_integer(), non_neg_integer(), String.t(), String.t()) :: {:ok, TravelMarketTx.t()}
+  def create(from_acc, nonce, fee, price, type, date, capacity, travel_time, ttl, from, to) do
     {:ok, %TravelMarketTx{
       from_acc: from_acc,
       nonce: nonce,
@@ -35,7 +39,10 @@ defmodule Aecore.Structures.TravelMarketTx do
       type: type,
       date: date,
       capacity: capacity,
-      travel_time: travel_time}}
+      travel_time: travel_time,
+      ttl: ttl,
+      from: from,
+      to: to}}
   end
 
   @spec hash_tx(TravelMarketTx.t()) :: binary()

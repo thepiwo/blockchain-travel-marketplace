@@ -24,9 +24,19 @@ defmodule Aehttpserver.Web.MarketController do
 
   def offer(conn, _params) do
     {:ok, pubkey} = Keys.pubkey()
-    next_nonce = Chain.chain_state()[pubkey].nonce + 1
+    chain_state = Chain.chain_state()
+    next_nonce = if Map.has_key?(chain_state, pubkey) do
+      chain_state[pubkey].nonce + 1
+    else
+      1
+    end
 
     request = Poison.decode!(Poison.encode!(conn.body_params), [keys: :atoms])
+    ttl = if Map.has_key?(request, :ttl) do
+      request.ttl
+    else
+      Chain.top_height() + 1000
+    end
 
     market_tx = %TravelMarketTx{
       from_acc: pubkey,
@@ -36,7 +46,11 @@ defmodule Aehttpserver.Web.MarketController do
       type: :offer,
       date: request.date,
       capacity: request.capacity,
-      travel_time: request.travel_time}
+      travel_time: request.travel_time,
+      ttl: ttl,
+      from: request.from,
+      to: request.to}
+
     {:ok, signed_tx} = Keys.sign_tx(market_tx)
     Pool.add_transaction(signed_tx)
     json conn, %{ok: "added offer to pool"}
@@ -44,9 +58,19 @@ defmodule Aehttpserver.Web.MarketController do
 
   def demand(conn, _params) do
     {:ok, pubkey} = Keys.pubkey()
-    next_nonce = Chain.chain_state()[pubkey].nonce + 1
+    chain_state = Chain.chain_state()
+    next_nonce = if Map.has_key?(chain_state, pubkey) do
+      chain_state[pubkey].nonce + 1
+    else
+      1
+    end
 
     request = Poison.decode!(Poison.encode!(conn.body_params), [keys: :atoms])
+    ttl = if Map.has_key?(request, :ttl) do
+      request.ttl
+    else
+      Chain.top_height() + 1000
+    end
 
     market_tx = %TravelMarketTx{
       from_acc: pubkey,
@@ -56,7 +80,11 @@ defmodule Aehttpserver.Web.MarketController do
       type: :demand,
       date: request.date,
       capacity: request.capacity,
-      travel_time: request.travel_time}
+      travel_time: request.travel_time,
+      ttl: ttl,
+      from: request.from,
+      to: request.to}
+
     {:ok, signed_tx} = Keys.sign_tx(market_tx)
     Pool.add_transaction(signed_tx)
     json conn, %{ok: "added demand to pool"}
