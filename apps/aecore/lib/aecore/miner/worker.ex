@@ -342,7 +342,7 @@ defmodule Aecore.Miner.Worker do
 
       demand_matches_capacity = possible_demands |> List.foldl({[], offer.data.capacity}, fn demand, {demand_matches, capacity_left} ->
         if capacity_left >= demand.data.capacity do
-          {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer), TravelMarketTx.hash_tx(demand))
+          {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer.data), TravelMarketTx.hash_tx(demand.data))
           market_match_tx = %SignedTx{data: market_match_tx, signature: nil}
           {[market_match_tx | demand_matches], capacity_left - demand.data.capacity}
         else

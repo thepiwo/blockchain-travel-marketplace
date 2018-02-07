@@ -9,7 +9,10 @@ defmodule Aehttpserver.Web.MarketController do
 
   def market(conn, params) do
     market_txs = Chain.market_txs()
-    market_txs_json = market_txs |> Enum.map(fn tx -> Serialization.tx(tx, :serialize) end)
+    market_txs_json = market_txs |> Enum.map(fn tx ->
+      tx_hash = Serialization.hex_binary(:crypto.hash(:sha256, :erlang.term_to_binary(tx.data)), :serialize)
+      Map.put(Serialization.tx(tx, :serialize), "hash", tx_hash)
+    end)
     json conn, market_txs_json
   end
 
