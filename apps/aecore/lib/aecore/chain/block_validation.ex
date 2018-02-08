@@ -137,6 +137,9 @@ defmodule Aecore.Chain.BlockValidation do
     if Enum.empty?(txs) do
       <<0::256>>
     else
+
+      txs = txs |> Enum.sort(fn t1, t2 -> :crypto.hash(:sha256, :erlang.term_to_binary(t1)) > :crypto.hash(:sha256, :erlang.term_to_binary(t2)) end)
+
       merkle_tree =
       for transaction <- txs do
         transaction_data_bin = :erlang.term_to_binary(transaction.data)
