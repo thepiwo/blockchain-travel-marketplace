@@ -341,25 +341,27 @@ defmodule Aecore.Miner.Worker do
 
       IO.puts("possible_demands: #{inspect(possible_demands)}")
 
-      offer_previous_matches_demand_hashes = matches |> Enum.filter(fn match -> match.data.offer_hash == TravelMarketTx.hash_tx(offer.data) end) |> Enum.map(fn match -> match.data.demand_hash end)
-      offer_previous_matches_demands_capacity = demands |> Enum.filter(fn demand -> Enum.member?(offer_previous_matches_demand_hashes, TravelMarketTx.hash_tx(demand.data)) end) |> Enum.map(fn demand -> demand.data.capacity end)
-      offer_remaining_capacity = offer.data.capacity - (offer_previous_matches_demands_capacity |> Enum.sum())
+      offer_previous_matches_capacity = matches |> Enum.filter(fn match -> match.data.offer_hash == TravelMarketTx.hash_tx(offer.data) end) |> Enum.map(fn match -> match.data.capacity end)
+      offer_remaining_capacity = offer.data.capacity - (offer_previous_matches_capacity |> Enum.sum())
 
-     IO.puts("offer_remaining_capacity: #{inspect(offer_remaining_capacity)}")
+      IO.puts("offer_remaining_capacity: #{inspect(offer_remaining_capacity)}")
 
-     demand_matches_capacity = possible_demands |> List.foldl({[], [], offer_remaining_capacity}, fn demand, {demand_matches, satisfied_demands, capacity_left} ->
+      demand_matches_capacity = possible_demands |> List.foldl({[], [], offer_remaining_capacity}, fn demand, {demand_matches, satisfied_demands, capacity_left} ->
         if capacity_left >= demand.data.capacity do
-          {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer.data), TravelMarketTx.hash_tx(demand.data))
+
+          #TODO: check account balance
+
+          {:ok, market_match_tx} = MarketMatchTx.create(offer.data.from_acc, demand.data.from_acc, TravelMarketTx.hash_tx(offer.data), TravelMarketTx.hash_tx(demand.data), demand.data.capacity, demand.data.price)
           market_match_tx = %SignedTx{data: market_match_tx, signature: nil}
           {[market_match_tx | demand_matches], [demand | satisfied_demands], capacity_left - demand.data.capacity}
         else
           {demand_matches, satisfied_demands, capacity_left}
         end
-     end)
+      end)
 
-     IO.puts("demand_matches_capacity: #{inspect(demand_matches_capacity)}")
+      IO.puts("demand_matches_capacity: #{inspect(demand_matches_capacity)}")
 
-     {(demand_matches_capacity |> elem(0)) ++ market_match_txs, (demand_matches_capacity |> elem(1)) ++ satisfied_demands_txs}
+      {(demand_matches_capacity |> elem(0)) ++ market_match_txs, (demand_matches_capacity |> elem(1)) ++ satisfied_demands_txs}
     end)
 
     IO.puts("market_match_txs: #{inspect(market_match_txs)}")

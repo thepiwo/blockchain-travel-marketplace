@@ -60,6 +60,10 @@ defmodule Aecore.Structures.SignedTx do
         tx.data.fee >= 0
         && Keys.verify_tx(tx)
         && tx.data.capacity > 0
+      %MarketMatchTx{} ->
+        tx.data.from_acc != nil
+        && tx.data.to_acc != nil
+        && tx.signature == nil
     end
   end
 

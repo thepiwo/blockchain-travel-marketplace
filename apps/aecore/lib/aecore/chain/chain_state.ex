@@ -7,6 +7,7 @@ defmodule Aecore.Chain.ChainState do
   alias Aecore.Structures.SignedTx
   alias Aecore.Structures.SpendTx
   alias Aecore.Structures.TravelMarketTx
+  alias Aecore.Structures.MarketMatchTx
 
   require Logger
 
@@ -16,13 +17,8 @@ defmodule Aecore.Chain.ChainState do
               locked: [%{amount: integer(), block: integer()}],
               nonce: integer()}}
 
-  @spec calculate_and_validate_chain_state!(list(), account_chainstate(), integer()) :: account_chainstate()
+  @spec calculate_and_validate_chain_state!(list(SignedTx.t()), account_chainstate(), integer()) :: account_chainstate()
   def calculate_and_validate_chain_state!(txs, chain_state, block_height) do
-    txs
-    |> Enum.reduce(chain_state, fn(transaction, chain_state) ->
-      apply_transaction_on_state!(transaction, chain_state, block_height)
-    end)
-    |> update_chain_state_locked(block_height)
     txs
     |> Enum.reduce(chain_state, fn(transaction, chain_state) ->
       apply_transaction_on_state!(transaction, chain_state, block_height)
@@ -39,8 +35,6 @@ defmodule Aecore.Chain.ChainState do
                         transaction.data.to_acc,
                         transaction.data.value,
                         transaction.data.lock_time_block)
-      SignedTx.is_market_match?(transaction) ->
-        chain_state
       transaction.data.from_acc != nil ->
         if !SignedTx.is_valid?(transaction) do
           throw {:error, "Invalid transaction"}
@@ -51,15 +45,28 @@ defmodule Aecore.Chain.ChainState do
             transaction.data.value + transaction.data.fee
           %TravelMarketTx{} ->
            transaction.data.fee
+          %MarketMatchTx{} ->
+          transaction.data.capacity * transaction.data.price
          end
 
-        chain_state = chain_state
-        |> transaction_out!(block_height,
-                            transaction.data.from_acc,
-                            -value,
-                            transaction.data.nonce,
-                            -1)
+         IO.puts("value: #{value}")
 
+        chain_state = case transaction.data do
+          %MarketMatchTx{} ->
+            chain_state |> transaction_out!(block_height,
+                                            transaction.data.from_acc,
+                                            value,
+                                            Map.get(chain_state, transaction.data.from_acc, %{balance: 0, nonce: 0, locked: []}).nonce + 1,
+                                            -1)
+          _ ->
+            chain_state |> transaction_out!(block_height,
+                                            transaction.data.from_acc,
+                                            -value,
+                                            transaction.data.nonce,
+                                            -1)
+        end
+
+        chain_state =
         case transaction.data do
           %SpendTx{} ->
             chain_state
@@ -69,6 +76,12 @@ defmodule Aecore.Chain.ChainState do
                                transaction.data.lock_time_block)
           %TravelMarketTx{} ->
             chain_state
+          %MarketMatchTx{} ->
+            chain_state
+            |> transaction_in!(block_height,
+                               transaction.data.to_acc,
+                               -value,
+                               -1)
         end
       true ->
         throw {:error, "Noncoinbase transaction with from_acc=nil"}

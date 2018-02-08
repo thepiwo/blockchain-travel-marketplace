@@ -30,21 +30,21 @@ defmodule Aeutil.Serialization do
   @spec tx(SignedTx.t(), :serialize | :deserialize) :: SignedTx.t()
   def tx(tx, direction) do
     data = case tx.data do
-      %SpendTx{} ->
+      %{from_acc: from_acc, to_acc: to_acc, offer_hash: offer_hash, demand_hash: demand_hash} ->
         new_data = %{tx.data |
-          from_acc: hex_binary(tx.data.from_acc, direction),
-          to_acc: hex_binary(tx.data.to_acc, direction)}
-        SpendTx.new(new_data)
-      %MarketMatchTx{} ->
-        new_data = %{tx.data |
-          from_acc: hex_binary(tx.data.from_acc, direction),
-          to_acc: hex_binary(tx.data.to_acc, direction),
-          offer_hash: hex_binary(tx.data.offer_hash, direction),
-          demand_hash: hex_binary(tx.data.demand_hash, direction)}
+          from_acc: hex_binary(from_acc, direction),
+          to_acc: hex_binary(to_acc, direction),
+          offer_hash: hex_binary(offer_hash, direction),
+          demand_hash: hex_binary(demand_hash, direction)}
         MarketMatchTx.new(new_data)
-      %TravelMarketTx{} ->
+      %{from_acc: from_acc, to_acc: to_acc} ->
         new_data = %{tx.data |
-          from_acc: hex_binary(tx.data.from_acc, direction)
+          from_acc: hex_binary(from_acc, direction),
+          to_acc: hex_binary(to_acc, direction)}
+        SpendTx.new(new_data)
+      %{from_acc: from_acc} ->
+        new_data = %{tx.data |
+          from_acc: hex_binary(from_acc, direction)
         }
         TravelMarketTx.new(new_data)
     end
